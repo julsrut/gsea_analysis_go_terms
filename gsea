@@ -1,0 +1,35 @@
+library(org.Hs.eg.db)
+library(BiocManager)
+library(AnnotationDbi)
+
+library(clusterProfiler)
+
+#modified from https://bioconductor.statistik.tu-dortmund.de/packages/3.6/bioc/vignettes/clusterProfiler/inst/doc/clusterProfiler.html#go-gene-set-enrichment-analysis
+
+TTP <- as.data.frame(yourfile)
+
+gene.df <- bitr(TTP$ID, fromType = "ENSEMBL",
+                toType = c("ENTREZID", "SYMBOL"),
+                OrgDb = org.Hs.eg.db)
+#to run gsea you need: (from https://yulab-smu.top/biomedical-knowledge-mining-book/faq.html)
+#numeric vector:
+geneList = TTP[,2]
+#named vector
+names(geneList) = as.character(gene.df[,2])
+#sorted list
+geneList = sort(geneList, decreasing = TRUE)
+
+ego3 <- gseGO(geneList     = geneList,
+              OrgDb        = org.Hs.eg.db,
+              ont          = "MF",
+              nPerm        = 1000,
+              minGSSize    = 100,
+              maxGSSize    = 500,
+              pvalueCutoff = 0.05,
+              verbose      = FALSE)
+head(ego3)
+gsea_mf <- as.data.frame(ego3)
+
+library(writexl)
+
+write_xlsx(gsea_mf, "filepath//nameoffile.xlsx")
