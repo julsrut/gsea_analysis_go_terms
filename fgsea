@@ -1,0 +1,58 @@
+#adapted from https://stephenturner.github.io/deseq-to-fgsea/
+TTP <- as.data.frame(TTP_Differential_BasalLevel_Log2FC_padj_Julia_Correct)
+
+library(dplyr)
+library(fgsea)
+library(tibble)
+library(ggplot2)
+library(writexl)
+
+
+res2 <- TTP %>% 
+  dplyr::select(Gene.name, log2FoldChange) %>% 
+  na.omit() %>% 
+  distinct() %>% 
+  group_by(Gene.name) %>% 
+  summarize(log2FoldChange=mean(log2FoldChange))
+
+head(res2)
+
+ranks <- deframe(res2)
+head(ranks, 20)
+
+
+pathways.cp <- gmtPathways("TTP/c2.cp.v7.5.1.symbols.gmt")
+
+fgseaML <- fgseaMultilevel(pathways=pathways.cp, 
+                           stats=ranks, 
+                           minSize = 1, 
+                           maxSize = Inf,
+                           scoreType = c("std", "pos", "neg" )
+)
+#data visulization and extraction
+
+filtered_pathway <- subset(fgseaML, pval < 0.05 & padj < 0.15)
+top.path <- subset(filtered_pathway, NES > 1.5)
+bottom.path <- subset(filtered_pathway, NES < -1.5)
+path <- rbind(top.path, bottom.path)
+
+
+ggplot(path, aes(reorder(pathway, NES), NES)) +
+  geom_col(aes(fill=padj<0.05)) +
+  coord_flip() +
+  labs(x="Pathway", y="Normalized Enrichment Score",
+       title="Top 50 Enriched Canonical pathways", font.size = 3) + 
+  theme_minimal() +
+  theme(axis.text.y=element_text(size=rel(0.5)))
+
+gene <- pull(filtered_pathway, leadingEdge)[25]
+head(gene)
+
+#from https://www.biostars.org/p/390635/
+plotEnrichment(pathway = 
+                 pathways.cp[["REACTOME_GLUCOSE_METABOLISM"]], 
+               gseaParam = 1, ticksSize = 0.5, stats= ranks) +
+  labs(title="GLUCOSE METABOLISM") +
+  theme(plot.title = element_text(hjust = 0.5, face="bold"))
+
+write_xlsx(filtered_pathway, "/GSEA_CP_significant_pathways.xlsx")
