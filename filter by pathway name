@@ -1,0 +1,1 @@
+covid.pathways <- as.data.frame(filtered_pathway %>% filter(grepl("COVID", pathway)))
